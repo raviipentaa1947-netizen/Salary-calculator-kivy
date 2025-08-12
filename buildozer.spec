@@ -2,6 +2,7 @@
 title = Salary Calculator
 package.name = salarycalculator
 package.domain = org.example
+source.dir = salary_calculator_kivy_full
 source.include_exts = py,png,jpg,kv,txt
 version = 0.1
 requirements = python3,kivy==2.1.0
