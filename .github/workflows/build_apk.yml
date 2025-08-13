@@ -4,36 +4,64 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
+      # Install JDK
       - name: Set up JDK 11
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           java-version: '11'
-          distribution: 'adopt'
+          distribution: 'temurin'
 
-      - - name: Set up Android SDK
-  run: |
-    mkdir -p "$ANDROID_HOME/cmdline-tools"
-    cd "$ANDROID_HOME/cmdline-tools"
-    curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-    unzip commandlinetools.zip
-    mv cmdline-tools latest
-    export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-
-      - name: Accept Android Licenses
-        run: yes | sdkmanager --licenses
-
-
-      - name: Install SDK Packages
+      # Install Android SDK Command-line Tools
+      - name: Install Android SDK Command-line Tools
         run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mv cmdline-tools latest
+          echo "export ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH" >> $GITHUB_ENV
+
+      # Accept all Android SDK licenses
+      - name: Accept Android Licenses
+        run: |
+          source $GITHUB_ENV
+          yes | sdkmanager --licenses
+
+      # Install required SDK platforms and tools
+      - name: Install SDK Platforms and Build Tools
+        run: |
+          source $GITHUB_ENV
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+
+      # (Optional) Install NDK if needed
+      # Uncomment if your project requires NDK
+      # - name: Install NDK
+      #   run: |
+      #     source $GITHUB_ENV
+      #     sdkmanager "ndk;25.1.8937393"
+
+      # Build the APK
+      - name: Build APK
+        run: |
+          source $GITHUB_ENV
+          ./gradlew assembleDebug
           sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       # If your project requires NDK, uncomment this:
