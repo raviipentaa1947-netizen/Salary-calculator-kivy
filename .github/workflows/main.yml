@@ -25,6 +25,8 @@ jobs:
           sudo apt-get install -y python3-pip python3-setuptools git python3 python3-venv build-essential \
             libffi-dev libssl-dev libxml2-dev libxslt1-dev zlib1g-dev libjpeg-dev libfreetype6-dev
 
+      - name: pip install cython
+
       - name: Install Buildozer
         run: pip install buildozer
 
