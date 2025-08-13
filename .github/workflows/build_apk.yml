@@ -4,36 +4,58 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout your code
-      - name: Checkout Code
+      # 1. Checkout source code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Setup Java JDK
-      - name: Set up JDK 11
+      # 2. Set up JDK (Java 17 is recommended for modern Android builds)
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
           distribution: 'temurin'
+          java-version: '17'
 
-      # 3. Install required packages
-      - name: Install Required Packages
+      # 3. Set up Android SDK
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # 4. Accept all Android SDK licenses
+      - name: Accept Android SDK Licenses
+        run: yes | sdkmanager --licenses
+
+      # 5. Install required build tools
+      - name: Install SDK Build Tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip tar
+          sdkmanager "platform-tools" \
+                     "platforms;android-34" \
+                     "build-tools;34.0.0" \
+                     "cmdline-tools;latest"
 
-      # 4. Setup Android SDK
-      - name: Install Android SDK & Build Tools
-        run: |
-          export ANDROID_HOME=$HOME/android-sdk
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+      # 6. Create cmdline-tools directory (if needed)
+      - name: Create cmdline-tools directory
+        run: mkdir -p $ANDROID_HOME/cmdline-tools
 
+      # 7. Make Gradlew executable
+      - name: Grant execute permission for Gradlew
+        run: chmod +x ./gradlew
+
+      # 8. Build Debug APK
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      # 9. Upload the generated APK artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
         run: |
           sdkmanager "platform-tools" "platforms;android-33" "build-tools;34.0.0" "ndk;25.2.9519653"
 
