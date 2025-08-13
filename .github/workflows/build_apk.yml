@@ -1,39 +1,55 @@
 name: Build Android APK
 
 on:
+  # Triggers the workflow on pushes to the 'main' branch
   push:
     branches:
       - main
-  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
   build:
+    # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout source code
-      - name: Checkout
+      # 1. Checks out your repository under $GITHUB_WORKSPACE, so your workflow can access it
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. Set up JDK (Java 17 is recommended for modern Android builds)
-      - name: Set up JDK
+      # 2. Sets up a Java JDK environment
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle' # Caches Gradle dependencies to speed up subsequent runs
 
-      # 3. Set up Android SDK
-      - name: Set up Android SDK
+      # 3. Sets up the Android SDK and installs necessary packages
+      - name: Setup Android SDK and install packages
         uses: android-actions/setup-android@v3
+        with:
+          # You can change these versions to match your project's compileSdkVersion and buildToolsVersion
+          packages: |
+            "build-tools;34.0.0"
+            "platforms;android-34"
+            "platform-tools"
+          
+      # 4. Gives execute permission to the Gradle wrapper script
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-      # 4. Accept all Android SDK licenses
-      - name: Accept Android SDK Licenses
-        run: yes | sdkmanager --licenses
+      # 5. Assembles the debug APK
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
 
-      # 5. Install required build tools
-      - name: Install SDK Build Tools
-        run: |
-          sdkmanager "platform-tools" \
+      # 6. Uploads the generated APK file as a workflow artifact
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
                      "platforms;android-34" \
                      "build-tools;34.0.0" \
                      "cmdline-tools;latest"
