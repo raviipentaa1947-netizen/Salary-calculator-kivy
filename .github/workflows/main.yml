@@ -1,9 +1,6 @@
-name: Build Android APK
+name: Build APK
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -11,29 +8,56 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      # Removed the cache option as it's causing an error.
-      # You can add this back later if your project uses Gradle and you figure out the correct path.
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
-      
-      - name: Setup Android SDK and install packages
-        uses: android-actions/setup-android@v3
-        with:
-          # You might need to change these to match your project's requirements
-          packages: |
-            "build-tools;34.0.0"
-            "platforms;android-34"
+          python-version: "3.10"
 
-      # This step should only be run if gradlew exists
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            python3-pip \
+            python3-setuptools \
+            python3-wheel \
+            libffi-dev \
+            libssl-dev \
+            libsqlite3-dev \
+            libjpeg-dev \
+            zlib1g-dev \
+            wget
+
+      - name: Install Buildozer
+        run: |
+          pip install --upgrade pip
+          pip install buildozer
+
+      - name: Install Android SDK & NDK
+        run: |
+          mkdir -p ~/.buildozer/android/platform
+          cd ~/.buildozer/android/platform
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip
+          unzip commandlinetools-linux-9123335_latest.zip -d cmdline-tools
+          yes | cmdline-tools/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/.buildozer/android/platform/android-sdk \
+            "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.1.8937393"
+
+      - name: Initialize Buildozer
+        run: |
+          if [ ! -f buildozer.spec ]; then
+            buildozer init
+          fi
+
+      - name: Build APK
+        run: |
+          buildozer -v android debug
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
