@@ -14,28 +14,25 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # Removed the cache option as it's causing an error.
+      # You can add this back later if your project uses Gradle and you figure out the correct path.
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
-
+      
       - name: Setup Android SDK and install packages
         uses: android-actions/setup-android@v3
         with:
+          # You might need to change these to match your project's requirements
           packages: |
             "build-tools;34.0.0"
             "platforms;android-34"
 
       # This step should only be run if gradlew exists
       - name: Grant execute permission for gradlew
-        run: |
-          if [ -f "gradlew" ]; then
-            chmod +x gradlew
-          else
-            echo "gradlew not found, skipping chmod"
-          fi
+        run: chmod +x gradlew
       
       - name: Build Debug APK
         run: ./gradlew assembleDebug
