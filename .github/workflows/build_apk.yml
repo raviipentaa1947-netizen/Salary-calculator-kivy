@@ -104,7 +104,7 @@ jobs:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           run: |
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;34.0.0" "ndk;25.2.9519653"
+            sdkmanager "platform-tools" "platforms;android-33" "build-tools;34.0.0" "ndk;25.2.9519653"
 
       # 6. Make Gradlew executable
       - name: Grant execute permission for Gradlew
