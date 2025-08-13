@@ -1,51 +1,56 @@
 name: Build APK
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y python3-pip python3-setuptools python3-wheel \
-                            git zip unzip openjdk-17-jdk
-        pip install --upgrade pip
-        pip install buildozer cython
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip python3-setuptools python3-wheel \
+                              git zip unzip openjdk-17-jdk
+          pip install --upgrade pip
+          pip install buildozer cython
 
-    - name: Install Android SDK and NDK
-      run: |
-        yes | sdkmanager --licenses
-        sdkmanager "platform-tools" \
-                   "platforms;android-33" \
-                   "build-tools;36.0.0" \
-                   "ndk;25.2.9519653" \
-                   "cmake;3.22.1"
+      - name: Install Android SDK Command Line Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mv cmdline-tools latest
+          export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          sdkmanager --version
 
-    - name: Set ANDROID_HOME environment
-      run: |
-        echo "ANDROID_HOME=$HOME/Android/Sdk" >> $GITHUB_ENV
-        mkdir -p $ANDROID_HOME/cmdline-tools
-        rm -rf $ANDROID_HOME/cmdline-tools/latest
-        mv cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+      - name: Accept Android Licenses
+        run: yes | sdkmanager --licenses
 
-    - name: Build APK
-      run: |
-        buildozer -v android debug
+      - name: Install Android SDK and NDK
+        run: |
+          sdkmanager "platform-tools" \
+          "platforms;android-33" \
+          "build-tools;36.0.0" \
+          "ndk;25.2.9519653"
 
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-apk
-        path: bin/*.apk
+      - name: Build APK
+        run: |
+          export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          buildozer android debug
