@@ -4,63 +4,59 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      ANDROID_HOME: ${{ github.workspace }}/android-sdk
-      JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Install JDK
       - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
           java-version: '11'
           distribution: 'temurin'
 
-      # Install Android SDK Command-line Tools
-      - name: Install Android SDK Command-line Tools
+      - name: Install Android SDK & Tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip
-          mkdir -p $ANDROID_HOME/cmdline-tools
-          cd $ANDROID_HOME/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip
-          mv cmdline-tools latest
-          echo "export ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH" >> $GITHUB_ENV
+          echo "Installing Android SDK Command-line Tools"
+          sudo mkdir -p /usr/local/android-sdk
+          sudo chown $USER:$USER /usr/local/android-sdk
+          cd /usr/local/android-sdk
 
-      # Accept all Android SDK licenses
-      - name: Accept Android Licenses
-        run: |
-          source $GITHUB_ENV
+          # Download and extract SDK command-line tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip commandlinetools-linux-9477386_latest.zip -d cmdline-tools
+          mv cmdline-tools/cmdline-tools cmdline-tools/latest
+
+          # Set environment variables
+          export ANDROID_HOME=/usr/local/android-sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+
+          # Install essential components
+          sdkmanager --sdk_root=$ANDROID_HOME --install \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2" \
+            "ndk;25.2.9519653" \
+            "cmake;3.22.1"
+
+          # Accept all licenses
           yes | sdkmanager --licenses
 
-      # Install required SDK platforms and tools
-      - name: Install SDK Platforms and Build Tools
+      - name: Verify SDK installation
         run: |
-          source $GITHUB_ENV
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          export ANDROID_HOME=/usr/local/android-sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          sdkmanager --list
 
-      # (Optional) Install NDK if needed
-      # Uncomment if your project requires NDK
-      # - name: Install NDK
-      #   run: |
-      #     source $GITHUB_ENV
-      #     sdkmanager "ndk;25.1.8937393"
-
-      # Build the APK
-      - name: Build APK
+      - name: Build the APK
         run: |
-          source $GITHUB_ENV
+          export ANDROID_HOME=/usr/local/android-sdk
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          ./gradlew assembleDebug
           ./gradlew assembleDebug
           sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
