@@ -4,79 +4,88 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      # 1. Checkout your code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
+      # 2. Setup Java JDK
       - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
           java-version: '11'
           distribution: 'temurin'
 
-      - name: Install Android SDK & Tools
+      # 3. Install required packages
+      - name: Install Required Packages
         run: |
-          echo "Installing Android SDK Command-line Tools"
-          sudo mkdir -p /usr/local/android-sdk
-          sudo chown $USER:$USER /usr/local/android-sdk
-          cd /usr/local/android-sdk
+          sudo apt-get update
+          sudo apt-get install -y wget unzip tar
 
-          # Download and extract SDK command-line tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip commandlinetools-linux-9477386_latest.zip -d cmdline-tools
-          mv cmdline-tools/cmdline-tools cmdline-tools/latest
-
-          # Set environment variables
-          export ANDROID_HOME=/usr/local/android-sdk
+      # 4. Setup Android SDK
+      - name: Install Android SDK & Build Tools
+        run: |
+          export ANDROID_HOME=$HOME/android-sdk
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
 
-          # Install essential components
-          sdkmanager --sdk_root=$ANDROID_HOME --install \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;33.0.2" \
-            "ndk;25.2.9519653" \
-            "cmake;3.22.1"
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip -d latest
+          rm cmdline-tools.zip
 
-          # Accept all licenses
           yes | sdkmanager --licenses
-
-      - name: Verify SDK installation
-        run: |
-          export ANDROID_HOME=/usr/local/android-sdk
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          sdkmanager --list
-
-      - name: Build the APK
-        run: |
-          export ANDROID_HOME=/usr/local/android-sdk
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          ./gradlew assembleDebug
-          ./gradlew assembleDebug
           sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
-      # If your project requires NDK, uncomment this:
-      # - name: Install NDK
-      #   run: sdkmanager "ndk;25.
-
-
-      - name: Install Android Tools
+      # 5. Install NDK
+      - name: Install NDK
         run: |
-          yes | sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+          export ANDROID_HOME=$HOME/android-sdk
+          yes | sdkmanager --install "ndk;23.1.7779620"
 
+      # 6. Accept all licenses
+      - name: Accept Licenses
+        run: yes | sdkmanager --licenses
+
+      # 7. Check if Gradle Wrapper exists
+      - name: Check for Gradle Wrapper
+        id: check-wrapper
+        run: |
+          if [ -f "./gradlew" ]; then
+            echo "wrapper=true" >> $GITHUB_ENV
+          else
+            echo "wrapper=false" >> $GITHUB_ENV
+          fi
+
+      # 8. Install Gradle if wrapper missing
+      - name: Install Gradle
+        if: env.wrapper == 'false'
+        run: |
+          sudo apt-get install -y gradle
+          gradle --version
+
+      # 9. Build APK
       - name: Build APK
         run: |
           export ANDROID_HOME=$HOME/android-sdk
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-          buildozer android debug
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+          if [ "$wrapper" == "true" ]; then
+            chmod +x ./gradlew
+            ./gradlew assembleDebug
+          else
+            gradle assembleDebug
+          fi
+
+      # 10. Upload APK as artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
         with:
-          name: app-apk
-          path: bin/*.apk
+          name: app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
